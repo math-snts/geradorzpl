@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Gerador de Etiquetas Shopee</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #121212;
+      color: #fff;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    body.light {
+      background: #f7f7f7;
+      color: #222;
+    }
+    .container {
+      max-width: 900px;
+      margin-top: 20px;
+      padding: 20px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 20px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+      width: 90%;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    input, button {
+      padding: 10px;
+      margin: 5px;
+      border-radius: 12px;
+      border: none;
+      outline: none;
+    }
+    input[type="file"] {
+      width: 250px;
+      background: rgba(255,255,255,0.1);
+      color: inherit;
+    }
+    input[type="text"] {
+      width: 200px;
+      background: rgba(255,255,255,0.1);
+      color: inherit;
+    }
+    button {
+      background: linear-gradient(45deg, #ff9800, #ffc107);
+      color: #000;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:hover { opacity: 0.9; }
+    .progress-container {
+      width: 100%;
+      background: rgba(255,255,255,0.1);
+      border-radius: 12px;
+      margin: 15px 0;
+      overflow: hidden;
+    }
+    .progress-bar {
+      height: 20px;
+      width: 0;
+      background: linear-gradient(90deg, #ff9800, #ffc107);
+    }
+    .status-panel {
+      max-height: 200px;
+      overflow-y: auto;
+      padding: 10px;
+      border-radius: 12px;
+      background: rgba(0,0,0,0.3);
+      margin-top: 10px;
+      font-size: 14px;
+    }
+    .switch-mode {
+      position: absolute;
+      left: 20px;
+      top: 20px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 24px;
+    }
+    .drop-zone {
+      margin-top: 10px;
+      padding: 20px;
+      border: 2px dashed rgba(255,255,255,0.3);
+      border-radius: 12px;
+      text-align: center;
+      color: inherit;
+      cursor: pointer;
+    }
+    .drop-zone.dragover {
+      background: rgba(255,255,255,0.1);
+    }
+    .btn-danger {
+      background: #e53935;
+      color: #fff;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .btn-danger:hover { opacity: 0.85; }
+    .action-buttons {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <button class="switch-mode" id="modeBtn">🌙</button>
+  <div class="container">
+    <h1>Gerador de Etiquetas Shopee</h1>
+    <div>
+      <input type="file" id="fileInput" multiple>
+      <input type="text" id="redeSocial" placeholder="Rede social">
+    </div>
+    <div class="drop-zone" id="dropZone">Arraste e solte os arquivos aqui</div>
+    <div class="progress-container">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+    <div id="eta">Tempo estimado: --</div>
+    <div class="status-panel" id="statusPanel"></div>
+    <div class="action-buttons">
+      <button onclick="processar()">Gerar PDF</button>
+      <button class="btn-danger" onclick="limparArquivos()">❌</button>
+    </div>
+  </div>
+
+  <script>
+    const { jsPDF } = window.jspdf;
+    let darkMode = true;
+    let fileList = [];
+
+    document.getElementById("modeBtn").addEventListener("click", () => {
+      darkMode = !darkMode;
+      document.body.classList.toggle("light", !darkMode);
+      document.getElementById("modeBtn").textContent = darkMode ? "🌙" : "☀️";
+    });
+
+    function logStatus(msg) {
+      const panel = document.getElementById("statusPanel");
+      const line = document.createElement("div");
+      line.textContent = msg;
+      panel.appendChild(line);
+      panel.scrollTop = panel.scrollHeight;
+    }
+
+    function limparArquivos() {
+      fileList = [];
+      document.getElementById("fileInput").value = "";
+      document.getElementById("progressBar").style.width = "0%";
+      document.getElementById("eta").textContent = "Tempo estimado: --";
+      document.getElementById("statusPanel").innerHTML = "";
+      logStatus("Arquivos removidos.");
+    }
+
+    async function extrairEtiquetas(texto) {
+      let etiquetas = [];
+      if (texto.includes("~DGR:DEMO.GRF")) {
+        const regexShopee = /~DGR:DEMO\.GRF[\s\S]*?:DEMO\.GRF\^FS\^XZ/gm;
+        let match;
+        while ((match = regexShopee.exec(texto)) !== null) {
+          let bloco = match[0].trim();
+          bloco = bloco.replace(/[^\x09\x0A\x0D\x20-\x7E]/g, "");
+          etiquetas.push(bloco);
+        }
+      } else {
+        const regex = /\^XA[\s\S]*?\^XZ/gm;
+        let match;
+        while ((match = regex.exec(texto)) !== null) {
+          let bloco = match[0].trim();
+          bloco = bloco.replace(/[^\x09\x0A\x0D\x20-\x7E]/g, "");
+          etiquetas.push(bloco);
+        }
+      }
+      return etiquetas;
+    }
+
+    async function processar() {
+      const files = fileList.length ? fileList : document.getElementById("fileInput").files;
+      if (!files.length) return alert("Selecione ou arraste arquivos .txt ou .zip");
+
+      const totalStart = Date.now();
+      let etiquetas = [];
+      const redeSocial = document.getElementById("redeSocial").value || "";
+
+      for (const file of files) {
+        if (file.name.endsWith(".zip")) {
+          const data = await file.arrayBuffer();
+          const zip = await JSZip.loadAsync(data);
+          for (const fname in zip.files) {
+            if (fname.endsWith(".txt")) {
+              const texto = await zip.files[fname].async("string");
+              etiquetas.push(...await extrairEtiquetas(texto));
+            }
+          }
+        } else if (file.name.endsWith(".txt")) {
+          const texto = await file.text();
+          etiquetas.push(...await extrairEtiquetas(texto));
+        }
+      }
+
+      if (!etiquetas.length) return alert("Nenhuma etiqueta encontrada.");
+
+      const pdf = new jsPDF({unit:"mm", format:[100,150]});
+      const progressBar = document.getElementById("progressBar");
+      const etaDiv = document.getElementById("eta");
+
+      for (let i=0; i<etiquetas.length; i++) {
+        const zpl = etiquetas[i];
+        logStatus(`Enviando etiqueta ${i+1}/${etiquetas.length}...`);
+
+        try {
+          const res = await fetch("https://api.labelary.com/v1/printers/8dpmm/labels/4x6/0/", {
+            method:"POST",
+            headers: { "Content-Type":"application/x-www-form-urlencoded", "Accept":"image/png" },
+            body: zpl
+          });
+          if (!res.ok) throw new Error("Falha Labelary");
+          const blob = await res.blob();
+
+          if (i>0) pdf.addPage();
+          const imgData = await toBase64(blob);
+          pdf.addImage(imgData, "PNG", 0, 0, 100, 150);
+
+          // cabeçalho: rede social (esquerda) + contador (direita)
+          pdf.setFontSize(11);
+          pdf.text(redeSocial, 5, 4, {align:"left"});
+          pdf.text(`${i+1}/${etiquetas.length}`, 95, 4, {align:"right"});
+
+        } catch(e) {
+          logStatus(`Erro na etiqueta ${i+1}: ${e.message}, aguardando 0,5s`);
+          await new Promise(r => setTimeout(r, 500));
+          i--; // repete a mesma etiqueta
+        }
+
+        progressBar.style.width = ((i+1)/etiquetas.length*100)+"%";
+        const elapsed = (Date.now()-totalStart)/(i+1);
+        const remaining = (etiquetas.length-i-1)*elapsed/1000;
+        etaDiv.textContent = "Tempo estimado: " + remaining.toFixed(1) + "s";
+      }
+
+      // nome do arquivo etiqueta+datadehoje+quantidade
+      const hoje = new Date();
+      const dataStr = hoje.toISOString().split("T")[0].replace(/-/g,""); // YYYYMMDD
+      const fileName = `etiqueta-${dataStr}-${etiquetas.length}.pdf`;
+
+      pdf.save(fileName);
+      pdf.autoPrint();
+      window.open(URL.createObjectURL(pdf.output("blob")), "_blank");
+      logStatus("PDF gerado com sucesso!");
+      fileList = [];
+    }
+
+    function toBase64(blob) {
+      return new Promise((res, rej)=>{
+        const reader = new FileReader();
+        reader.onloadend = ()=>res(reader.result);
+        reader.onerror = rej;
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    // Drag & Drop
+    const dropZone = document.getElementById("dropZone");
+    dropZone.addEventListener("dragover", (e)=>{
+      e.preventDefault();
+      dropZone.classList.add("dragover");
+    });
+    dropZone.addEventListener("dragleave", ()=>{
+      dropZone.classList.remove("dragover");
+    });
+    dropZone.addEventListener("drop", (e)=>{
+      e.preventDefault();
+      dropZone.classList.remove("dragover");
+      fileList = Array.from(e.dataTransfer.files);
+      logStatus(fileList.length+" arquivos adicionados via drag & drop.");
+    });
+  </script>
+</body>
+</html>
