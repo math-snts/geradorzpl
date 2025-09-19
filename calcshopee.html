@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calculadora Shopee</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+  <div class="bg-white shadow-lg rounded-2xl p-6 w-full max-w-md">
+    <h1 class="text-2xl font-bold text-center mb-4 text-orange-600">Calculadora Shopee</h1>
+    
+    <!-- Inputs -->
+    <div class="space-y-3">
+      <input type="number" id="valorVenda" placeholder="Valor de venda (R$)" class="w-full border rounded-lg p-2">
+      <input type="number" id="taxaComissao" placeholder="Taxa de comissão (%)" class="w-full border rounded-lg p-2">
+      <input type="number" id="taxaServico" placeholder="Taxa de serviço (%)" class="w-full border rounded-lg p-2">
+      <input type="number" id="taxaItem" placeholder="Taxa por item (R$)" class="w-full border rounded-lg p-2">
+      <input type="number" id="aliquota" placeholder="Alíquota de imposto (%)" class="w-full border rounded-lg p-2">
+      <input type="number" id="afiliado" placeholder="Porcentagem afiliado (%)" class="w-full border rounded-lg p-2">
+      <input type="number" id="precoCusto" placeholder="Preço de custo (R$)" class="w-full border rounded-lg p-2">
+    </div>
+
+    <button onclick="calcular()" class="mt-4 w-full bg-orange-600 text-white p-2 rounded-lg font-bold">Calcular</button>
+
+    <!-- Resultados -->
+    <div id="resultado" class="mt-6 hidden">
+      <h2 class="text-xl font-bold mb-2">Resultados</h2>
+      <p><strong>Taxa Shopee:</strong> R$ <span id="taxaShopee"></span></p>
+      <p><strong>Imposto:</strong> R$ <span id="imposto"></span></p>
+      <p><strong>Afiliado:</strong> R$ <span id="afiliadoValor"></span></p>
+      <p><strong>Valor líquido:</strong> R$ <span id="valorLiquido"></span></p>
+      <p><strong>Lucro líquido:</strong> R$ <span id="lucroLiquido"></span></p>
+      <p><strong>Margem:</strong> <span id="margem"></span>%</p>
+    </div>
+  </div>
+
+  <script>
+    function calcular() {
+      let valorVenda = parseFloat(document.getElementById("valorVenda").value) || 0;
+      let taxaComissao = (parseFloat(document.getElementById("taxaComissao").value) || 0) / 100;
+      let taxaServico = (parseFloat(document.getElementById("taxaServico").value) || 0) / 100;
+      let taxaItem = parseFloat(document.getElementById("taxaItem").value) || 0;
+      let aliquota = (parseFloat(document.getElementById("aliquota").value) || 0) / 100;
+      let afiliado = (parseFloat(document.getElementById("afiliado").value) || 0) / 100;
+      let precoCusto = parseFloat(document.getElementById("precoCusto").value) || 0;
+
+      // cálculos
+      let comissao = valorVenda * taxaComissao;
+      let servico = valorVenda * taxaServico;
+      let imposto = valorVenda * aliquota;
+      let afiliadoValor = valorVenda * afiliado;
+
+      let taxaShopee = comissao + servico + taxaItem;
+      let valorLiquido = valorVenda - taxaShopee - imposto - afiliadoValor;
+      let lucroLiquido = valorLiquido - precoCusto;
+      let margem = ((lucroLiquido / valorVenda) * 100).toFixed(2);
+
+      // exibir resultados
+      document.getElementById("taxaShopee").innerText = taxaShopee.toFixed(2);
+      document.getElementById("imposto").innerText = imposto.toFixed(2);
+      document.getElementById("afiliadoValor").innerText = afiliadoValor.toFixed(2);
+      document.getElementById("valorLiquido").innerText = valorLiquido.toFixed(2);
+      document.getElementById("lucroLiquido").innerText = lucroLiquido.toFixed(2);
+      document.getElementById("margem").innerText = margem;
+
+      document.getElementById("resultado").classList.remove("hidden");
+    }
+  </script>
+</body>
+</html>
